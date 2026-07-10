@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa Rizomático — CIP Olinda</title>
+<style>
+:root{color-scheme:light;
+ --pl:#94a3b8; --af:#f59e0b; --fz:#3b82f6; --ft:#10b981;
+ --ink:#1e293b; --mut:#64748b; --bg:#f8fafc; --card:#ffffff; --line:#e2e8f0; --link:#c026d3; --np:#7c3aed; --ent:#0d9488;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+body{background:var(--bg);color:var(--ink);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{padding:9px 16px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header h1{font-size:15px;font-weight:700}
+header .sub{font-size:11px;color:var(--mut)}
+#stats{display:flex;gap:8px;font-size:11px;margin-left:auto;flex-wrap:wrap}
+#stats span{padding:2px 8px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+#toolbar{padding:7px 16px;background:var(--card);border-bottom:1px solid var(--line);display:flex;gap:7px;align-items:center;flex-wrap:wrap;font-size:12px}
+.chip{padding:4px 10px;border-radius:14px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:12px;color:var(--mut)}
+.chip.on{color:#fff;border-color:transparent}
+.chip[data-s="planejado"].on{background:var(--pl)}
+.chip[data-s="afazer"].on{background:var(--af)}
+.chip[data-s="fazendo"].on{background:var(--fz)}
+.chip[data-s="feito"].on{background:var(--ft)}
+.chip[data-s="all"].on{background:var(--ink)}
+select,input[type=text],input[type=url],textarea{border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12px;background:#fff;color:var(--ink)}
+button{border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:12px;background:#fff;cursor:pointer;color:var(--ink)}
+button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+button.danger{color:#dc2626}
+button:hover{filter:brightness(.96)}
+#main{flex:1;display:flex;overflow:hidden;position:relative}
+#mapwrap{flex:1;position:relative;overflow:hidden}
+svg{width:100%;height:100%;display:block;cursor:grab}
+svg.panning{cursor:grabbing}
+.node{cursor:pointer}
+.node text{pointer-events:none;fill:var(--ink)}
+.node .lbl{font-size:10px}
+.node.dim{opacity:.05}
+.node.semi{opacity:.1}
+.node.lay1{opacity:.9}
+.node.lay2{opacity:.8}
+.tedge.dim{opacity:.1}
+.xedge.dimf{opacity:.08!important}
+.node.sel .shape{filter:drop-shadow(0 0 7px rgba(30,41,59,.55))}
+.tedge{stroke:#dbe3ec;stroke-width:1.2;fill:none}
+.xedge{fill:none;stroke:var(--link);cursor:pointer;pointer-events:stroke}
+.xedge.direto{stroke-width:2.2;opacity:.6}
+.xedge.indireto{stroke-width:1.2;stroke-dasharray:5 5;opacity:.4}
+.xedge.hl{opacity:1;stroke-width:3}
+.halo{fill:none;stroke:#a855f7;stroke-width:1.5;stroke-dasharray:2 3;opacity:.8}
+#zoomctl{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:4px}
+#zoomctl button{width:30px;height:30px;font-size:15px}
+#legend{position:absolute;right:12px;bottom:12px;background:rgba(255,255,255,.93);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:10.5px;color:var(--mut);line-height:1.75;max-width:330px}
+#legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+#panel{width:345px;background:var(--card);border-left:1px solid var(--line);padding:14px;overflow-y:auto;display:none;flex-direction:column;gap:10px}
+#panel.open{display:flex}
+#panel label{font-size:10.5px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+#panel input,#panel select,#panel textarea{width:100%}
+#panel textarea{resize:vertical}
+#p-notes{min-height:110px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+#crumbs{font-size:11px;color:var(--mut)}
+.connbox{border:1px solid #f0abfc;border-radius:8px;padding:5px 7px;margin:4px 0;background:#fdf4ff}
+.connbox.indireto{border-style:dashed;background:#faf5ff}
+.connhead{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#a21caf}
+.connhead span.nm{cursor:pointer;font-weight:600;flex:1}
+.connhead u{cursor:pointer;text-decoration:none;font-size:10px}
+.connhead b{cursor:pointer;color:#c026d3}
+.connnote{font-size:10.5px;color:var(--mut);margin-top:3px;font-style:italic}
+.badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;color:#fff}
+.drivelot{display:flex;gap:5px;align-items:center;margin:3px 0}
+.drivelot input{flex:1}
+.drivelot a{text-decoration:none;font-size:14px}
+#list{flex:1;overflow-y:auto;padding:14px 18px;display:none}
+#list.open{display:block}
+.exgrp{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.exhead{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
+.exhead h3{font-size:13px;flex:1}
+.pbar{width:110px;height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--ft)}
+.row{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid #f1f5f9;font-size:12.5px;cursor:pointer}
+.row:hover{background:var(--bg)}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.prec{font-size:10px;color:var(--mut);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.np{font-size:9.5px;color:var(--np);border:1px dashed var(--np);border-radius:4px;padding:0 4px}
+.drv{margin-left:auto;font-size:13px;text-decoration:none}
+.hint{font-size:10.5px;color:var(--mut)}
+#toast{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:6px 14px;border-radius:8px;font-size:12px;display:none;z-index:99}
+#overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:50}
+#overlay.open{display:flex}
+#modal{background:#fff;border-radius:12px;padding:18px;width:min(560px,92vw);max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+#modal.wide{width:min(900px,95vw)}
+#modal h2{font-size:14px}
+#modal label{font-size:10.5px;font-weight:600;color:var(--mut);text-transform:uppercase}
+#modal input,#modal select,#modal textarea{width:100%}
+.mdtb{display:flex;gap:4px;flex-wrap:wrap}
+.mdtb button{padding:3px 8px;font-size:11px}
+#mdsplit{display:flex;gap:10px;min-height:300px}
+#mdsplit textarea{flex:1;min-height:300px;font-family:ui-monospace,Menlo,monospace;font-size:12px;resize:vertical}
+#mdprev{flex:1;border:1px solid var(--line);border-radius:6px;padding:10px;font-size:12.5px;overflow-y:auto;background:var(--bg)}
+#mdprev h2{font-size:16px;margin:6px 0}#mdprev h3{font-size:14px;margin:5px 0}#mdprev h4{font-size:12.5px;margin:4px 0}
+#mdprev ul{padding-left:18px;margin:4px 0}
+#mdprev code{background:#eef2f7;padding:0 4px;border-radius:3px;font-size:11px}
+#mdprev a{color:#2563eb}
+.mrow{display:flex;gap:8px}.mrow>div{flex:1}
+</style>
+</head>
+<body>
+<header>
+ <div><h1>🌿 Mapa Rizomático — CIP Olinda</h1><div class="sub">Plano de pesquisa · 12 eixos · Curadoria Plínio Victor · OCCA</div></div>
+ <div id="stats"></div>
+</header>
+<div id="toolbar">
+ <span class="chip on" data-s="all">Todos</span>
+ <span class="chip" data-s="planejado">Planejado</span>
+ <span class="chip" data-s="afazer">A fazer</span>
+ <span class="chip" data-s="fazendo">Fazendo</span>
+ <span class="chip" data-s="feito">Feito</span>
+ <select id="fprec">
+  <option value="0">Precisão: todas</option>
+  <option value="1">≥ P1 (1 critério ✓)</option>
+  <option value="2">≥ P2 (2 critérios ✓)</option>
+  <option value="3">≥ P3 (3 critérios ✓)</option>
+  <option value="4">P4 completo (4/4 ✓)</option>
+ </select>
+ <select id="fclasse">
+  <option value="all">Classe: todas</option>
+  <option value="previsto">Previstos</option>
+  <option value="naoprevisto">Não previstos ✦</option>
+ </select>
+ <input type="text" id="fsearch" placeholder="Buscar…" style="width:120px">
+ <label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="fconn" checked> conexões</label>
+ <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--mut)" title="Quantas camadas de hierarquia aparecem junto com os elementos filtrados">Camadas <input type="range" id="flayers" min="1" max="3" value="1" style="width:70px"> <span id="flayerslbl" style="min-width:86px">só filtrados</span></label>
+ <button id="vtoggle">☰ Lista</button>
+ <button id="addbtn" class="primary">+ Novo elemento</button>
+ <button id="entbtn" style="color:var(--ent);border-color:var(--ent)">◈ Nova entidade</button>
+ <button id="expbtn">⇩ JSON</button>
+ <button id="expmd">⇩ .md geral</button>
+ <button id="impbtn">⇪ Importar</button>
+ <input type="file" id="impfile" accept=".json" style="display:none">
+ <button id="rstbtn" title="Voltar ao mapa original">↺</button>
+</div>
+<div id="main">
+ <div id="mapwrap">
+  <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="zoomctl"><button id="zin">+</button><button id="zout">−</button><button id="zfit" title="Enquadrar">⌂</button><button id="zheat" title="Redistribuir posições">✺</button></div>
+  <div id="legend">
+   <i style="background:var(--pl)"></i>Planejado &nbsp;<i style="background:var(--af)"></i>A fazer &nbsp;<i style="background:var(--fz)"></i>Fazendo &nbsp;<i style="background:var(--ft)"></i>Feito<br>
+   Tamanho = relevância · Borda = precisão P0–P4 (checklist: ABNT, 300 DPI, Autorizações, Curadoria) · <span style="color:#b45309">P4 = dourada ★</span><br>
+   <span style="color:var(--link)">━ conexão direta</span> · <span style="color:var(--link)">╌ indireta</span> (clique na linha p/ ver nota) · <span style="color:var(--ent)">◈ entidade (pessoa/instituição)</span> · <span style="color:var(--np)">✦ não previsto</span> · 📁 tem Drive<br>
+   Arraste as bolinhas livremente · ✺ redistribui tudo
+  </div>
+ </div>
+ <div id="list"></div>
+ <div id="panel"></div>
+ <div id="toast"></div>
+</div>
+<div id="overlay"><div id="modal"></div></div>
+<script>
+const LS='cip-olinda-rizoma-v2', LS1='cip-olinda-rizoma-v1';
+const STATUS={planejado:['Planejado','#94a3b8'],afazer:['A fazer','#f59e0b'],fazendo:['Fazendo','#3b82f6'],feito:['Feito','#10b981']};
+const CHECKS={abnt:['ABNT & fontes','Referências em norma ABNT; toda imagem com fonte indicada'],dpi:['Padrão 300 DPI','Imagens mín. 1920×1080 px / 300 DPI (antigas re-escaneadas)'],aut:['Autorizações','Termo de uso de imagem assinado para acervo particular'],cur:['Curadoria','Conteúdo validado pelo curador master Plínio Victor']};
+const precOf=n=>n.checks?Object.values(n.checks).filter(Boolean).length:0;
+const CLASSE={previsto:'Previsto (escopo original)',naoprevisto:'Não previsto ✦ (potencialidade)'};
+const DRIVEDIR={e1:'01_MAPA-TURISTICO',e2:'02_CASARAO-LUNDGREN',e3:'03_PATRIMONIO-IMATERIAL',e4:'04_LINHA-DO-TEMPO',e5:'05_GENESE-PAISAGEM',e6:'06_TRACADO-URBANO',e7:'07_BONDE',e8:'08_ALOISIO-MAGALHAES',e9:'09_POSTAIS-SELOS',e10:'10_MIDIATECA',e11:'11_GASTRONOMIA-ARTE',e12:'12_MARACATU-NACAO-PE'};
+function N(id,parent,tipo,label,desc,extra){return Object.assign({id,parent,tipo,label,desc:desc||'',status:'planejado',prec:0,checks:{abnt:false,dpi:false,aut:false,cur:false},relev:tipo==='centro'?5:tipo==='eixo'?4:2,classe:'previsto',drives:[],notes:'',x:null,y:null},extra||{})}
+const SEED={v:4,nodes:[
+ N('cip',null,'centro','CIP Olinda','Centro de Interpretação do Patrimônio do Centro Histórico de Olinda — Casarão Hermann Lundgren. Pesquisa OCCA, 3 meses.',{status:'fazendo'}),
+ N('e1','cip','eixo','1 · Mapa Turístico','Mapa de setorização com monitor touch: equipamentos tombados de cultura e turismo do Centro Histórico.'),
+ N('e2','cip','eixo','2 · Casarão Lundgren','A Edificação / Restauro e Retrofit do Casarão Hermann Lundgren (séc. XIX, bairro do Carmo).',{status:'afazer',notes:'Prioridade mês 1 — documentação possivelmente privada.'}),
+ N('e3','cip','eixo','3 · Patrimônio Imaterial','Galeria imersiva: Frevo, Bonecos Gigantes, Maracatu, Caboclinhos, Tapioca Olindense.'),
+ N('e4','cip','eixo','4 · Linha do Tempo','Painel com os marcos temporais do Centro Histórico, de 1535 à atualidade.'),
+ N('e5','cip','eixo','5 · Gênese: Paisagem','Paisagem natural na fundação (1535, Duarte Coelho); cenografia e projeções.',{status:'afazer',notes:'Prioridade mês 1 — acervos raros e internacionais (Frans Post).'}),
+ N('e6','cip','eixo','6 · Traçado Urbano','Urbanização do Centro Histórico a partir do Alto da Sé: plantas, planos, mapas, imagens aéreas.'),
+ N('e7','cip','eixo','7 · Bonde: Trilho das Épocas','Bonde cenográfico dos Bondes Elétricos de Olinda (1914–1950); arquitetura e paisagem do percurso.',{status:'afazer',notes:'Prioridade mês 1 — iconografia dispersa em coleções privadas.'}),
+ N('e8','cip','eixo','8 · Aloísio Magalhães','Painéis táteis com litogravuras; biografia e luta pelo título UNESCO.',{status:'afazer',notes:'Prioridade mês 1 — direitos sobre o Álbum Olinda.'}),
+ N('e9','cip','eixo','9 · Postais e Selos','Móbile com monóculos: cartões postais e selos antigos de Olinda + terminal de pesquisa.',{status:'afazer',notes:'Risco máximo — colecionadores privados. Primeiro contato do projeto.'}),
+ N('e10','cip','eixo','10 · Midiateca','Terminais de consulta: publicações, teses, artigos e audiovisual sobre o Centro Histórico.'),
+ N('e11','cip','eixo','11 · Gastronomia & Arte','Café bistrô + núcleo de artesanato: gastronomia e artistas olindenses.'),
+ N('e12','cip','eixo','12 · Maracatu Nação PE','Núcleo do Maracatu Nação Pernambuco, residente no local há mais de uma década.'),
+ N('e1-inv','e1','ramo','Inventário de equipamentos','Principais equipamentos de cultura e turismo tombados que entram no mapa.'),
+ N('e1-sin','e1','ramo','Sinopses dos espaços','Importância de cada espaço e acervo correspondente, em pílulas.'),
+ N('e1-dad','e1','ramo','Dados práticos','Localização, distância, como chegar — para o monitor touch.'),
+ N('e1-ico','e1','ramo','Iconografia','Imagens em alta resolução de cada equipamento.'),
+ N('e2-hist','e2','ramo','História e família Lundgren','Origem da edificação e trajetória da família Hermann Lundgren.'),
+ N('e2-arq','e2','ramo','Características arquitetônicas','Tipologia senhorial, fachada simétrica, alvenaria portante, telha cerâmica.'),
+ N('e2-usos','e2','ramo','Usos ao longo do tempo','Linha do tempo de usos, incluindo a Antiga Maternidade (edificação anexa).'),
+ N('e2-rest','e2','ramo','Restauro e retrofit','Registro do processo de restauração e adaptação para o CIP.'),
+ N('e3-frevo','e3','ramo','Frevo','História, características e importância; quem construiu essa história.'),
+ N('e3-bonecos','e3','ramo','Bonecos Gigantes','História e mestres bonequeiros de Olinda.'),
+ N('e3-mar','e3','ramo','Maracatu','O Maracatu como patrimônio imaterial de Olinda.'),
+ N('e3-cabo','e3','ramo','Caboclinhos','História, características e grupos.'),
+ N('e3-tap','e3','ramo','Tapioca Olindense','História, tapioqueiras do Alto da Sé, modos de fazer.'),
+ N('e3-mestres','e3','ramo','Personagens e mestres','As pessoas que construíram essa história, com suas contribuições.'),
+ N('e4-cron','e4','ramo','Cronologia 1535–hoje','Fatos: fundação 1535, invasão holandesa 1630, incêndio 1631, expulsão 1654, IPHAN 1968, UNESCO 14/12/1982.'),
+ N('e4-ico','e4','ramo','Ilustração por marco','Cada fato histórico precisa de ao menos uma imagem, ainda que representativa.'),
+ N('e5-carto','e5','ramo','Cartografia antiga','Cartografia mais antiga de Olinda; referências topográficas naturais originais.'),
+ N('e5-fauna','e5','ramo','Fauna e flora','Paisagem idílica natural do período de fundação.'),
+ N('e5-povos','e5','ramo','Caetés e escravizados','Povos originários (Caetés), povos escravizados, primeiras ocupações.'),
+ N('e5-cana','e5','ramo','Produção canavieira','Início da economia açucareira.'),
+ N('e5-hol','e5','ramo','Período holandês 1630–54','Invasão holandesa (1630) e expulsão (1654).'),
+ N('e5-post','e5','ramo','Pinturas de Frans Post','Arquivo com TODAS as pinturas de Frans Post sobre Olinda (séc. XVII) — citações imagéticas poéticas.',{relev:3}),
+ N('e6-plantas','e6','ramo','Plantas e mapas históricos','Plantas e imagens aéreas da fundação à atualidade.'),
+ N('e6-planos','e6','ramo','Planos diretores','Planos diretores e planos de intervenção urbana.'),
+ N('e6-transf','e6','ramo','Transformações urbanas','Aberturas de avenidas, ruas, praças e logradouros.'),
+ N('e6-se','e6','ramo','Alto da Sé','Ponto de partida narrativo — coração histórico da cidade.',{relev:3}),
+ N('e7-linhas','e7','ramo','Linhas e estações','Mapa das estações e linhas do Bonde Elétrico (1914–1950).'),
+ N('e7-ico','e7','ramo','Iconografia do percurso','Fotos, vídeos, pinturas das ruas, pontes e estações do trajeto.'),
+ N('e7-arq','e7','ramo','Arquitetura do trajeto','Tipologias, estilos, cores, mão de obra das construções do percurso.'),
+ N('e7-capiba','e7','ramo','Capiba','"Quem vai pra Farol é o Bonde de Olinda" — referência musical da instalação.'),
+ N('e8-bio','e8','ramo','Biografia','Sinopse biográfica de Aloísio Magalhães.'),
+ N('e8-album','e8','ramo','Álbum Olinda','As litogravuras do Álbum Olinda — base dos painéis táteis.',{relev:3}),
+ N('e8-unesco','e8','ramo','Luta pelo título UNESCO','Atuação de Aloísio no reconhecimento de Olinda como Patrimônio Mundial.'),
+ N('e9-postais','e9','ramo','Cartões postais','Inventário de imagens dos antigos cartões postais de Olinda.'),
+ N('e9-selos','e9','ramo','Selos','Selos antigos de Olinda.'),
+ N('e9-cat','e9','ramo','Catalogação temática','Imagens catalogadas por temas para o terminal de pesquisa.'),
+ N('e10-pub','e10','ramo','Publicações','Livros e publicações físicas/digitais sobre o Centro Histórico.'),
+ N('e10-teses','e10','ramo','Teses e dissertações','Produção acadêmica exclusivamente sobre o Centro Histórico.'),
+ N('e10-art','e10','ramo','Artigos e documentos','Artigos e documentos digitais catalogados.'),
+ N('e10-av','e10','ramo','Audiovisual','Filmes, documentários e registros audiovisuais.'),
+ N('e11-gastro','e11','ramo','Pratos e receitas','Principais pratos: características, receitas, histórias e modos de fazer.'),
+ N('e11-pessoas','e11','ramo','Personagens da gastronomia','Nomes da gastronomia olindense.'),
+ N('e11-arte','e11','ramo','Artistas e artesãos','Principais artistas e artesãos: histórias e produções.'),
+ N('e12-hist','e12','ramo','História do grupo','Principais informações e características do Maracatu Nação Pernambuco.'),
+ N('e12-mestres','e12','ramo','Mestres e membros','Membros e mestres do grupo.'),
+ N('e12-org','e12','ramo','Estrutura organizacional','Como o grupo se organiza.'),
+ N('e12-saber','e12','ramo','Saberes ancestrais','Saberes e práticas culturais ancestrais, sociais e identitárias.')
+],links:[
+ {a:'e3-mar',b:'e12',tipo:'direto',nota:'O núcleo do Eixo 12 é a expressão viva do patrimônio imaterial do Eixo 3.'},
+ {a:'e3-tap',b:'e11-gastro',tipo:'direto',nota:''},
+ {a:'e5-post',b:'e6-plantas',tipo:'indireto',nota:''},
+ {a:'e5-carto',b:'e6-plantas',tipo:'direto',nota:''},
+ {a:'e8-unesco',b:'e4-cron',tipo:'direto',nota:'O título UNESCO (14/12/1982) é marco da linha do tempo.'},
+ {a:'e7-linhas',b:'e6-transf',tipo:'direto',nota:''},
+ {a:'e9-postais',b:'e7-ico',tipo:'indireto',nota:'Postais antigos podem conter imagens do bonde e do percurso.'},
+ {a:'e2-hist',b:'e1-inv',tipo:'indireto',nota:''},
+ {a:'e12-mestres',b:'e3-mestres',tipo:'direto',nota:''},
+ {a:'e10-av',b:'e3-frevo',tipo:'indireto',nota:''}
+]};
+let DB, sel=null, view='map', fstatus=new Set(), fprec=0, fclasse='all', fsearch='', showConn=true, flayers=1;
+let vb={x:-820,y:-650,w:1640,h:1300};
+function migrate(d){
+ if(!d||!d.nodes)return null;
+ // transversais viram checklist de precisão
+ const tv=d.nodes.filter(n=>n.tipo==='transversal').map(n=>n.id);
+ d.nodes=d.nodes.filter(n=>n.tipo!=='transversal');
+ d.nodes.forEach(n=>{
+  if(n.tipo==='tag'){n.tipo='ramo';if(!n.parent)n.parent='cip';n.label=n.label.replace(/^#\s*/,'');}
+  if(n.relev==null)n.relev=n.tipo==='centro'?5:n.tipo==='eixo'?4:2;
+  if(!n.classe)n.classe='previsto';
+  if(!n.drives)n.drives=n.drive?[{label:'Lote principal',url:n.drive}]:[];
+  delete n.drive;
+  if(n.notes==null)n.notes='';
+  if(!n.checks){const p=n.prec||0;n.checks={abnt:p>=2,dpi:p>=3,aut:p>=4,cur:p>=4};}
+  n.prec=precOf(n);
+  if(n.x===undefined)n.x=null; if(n.y===undefined)n.y=null;
+  delete n.vx; delete n.vy; delete n._a;
+ });
+ d.links=(d.links||[]).map(L=>Array.isArray(L)?{a:L[0],b:L[1],tipo:'direto',nota:''}:Object.assign({nota:''},L)).filter(L=>!tv.includes(L.a)&&!tv.includes(L.b));
+ if(d.v!==4){d.nodes.forEach(n=>{n.x=null;n.y=null;});d.v=4;} // relayout ao migrar
+ return d;
+}
+function load(){
+ try{
+  let s=localStorage.getItem(LS);
+  if(s){DB=migrate(JSON.parse(s));return;}
+  s=localStorage.getItem(LS1);
+  if(s){DB=migrate(JSON.parse(s));save();return;}
+ }catch(e){}
+ DB=migrate(structuredClone(SEED));
+}
+function save(){localStorage.setItem(LS,JSON.stringify(DB));}
+const byId=id=>DB.nodes.find(n=>n.id===id);
+const kids=id=>DB.nodes.filter(n=>n.parent===id);
+function rootEixo(id){let n=byId(id);while(n&&n.parent&&n.parent!=='cip')n=byId(n.parent);return n&&n.parent==='cip'?n.id:null;}
+function drivePath(n){if(n.tipo==='centro')return 'CIP-OLINDA/';if(n.tipo==='transversal')return 'CIP-OLINDA/00_GESTAO/';if(n.tipo==='entidade'||(!n.parent&&n.tipo!=='centro'))return 'CIP-OLINDA/00_GESTAO/ENTIDADES/';const r=rootEixo(n.id);return 'CIP-OLINDA/'+(DRIVEDIR[r]||'NOVOS')+'/';}
+function descRamos(id){const out=[];(function w(i){kids(i).forEach(k=>{out.push(k);w(k.id);})})(id);return out;}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+function slug(s){return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
+function radius(n){const base={centro:26,eixo:14,transversal:8,ramo:8,entidade:11}[n.tipo]||8;return base*(0.65+0.18*(n.relev||2));}
+// ---- markdown mini-renderer ----
+function md(s){
+ if(!s)return '<span class="hint">—</span>';
+ const lines=esc(s).split('\n');let out='',inUl=false;
+ const inline=t=>t.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*([^*]+)\*/g,'$1<i>$2</i>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\[(.+?)\]\((https?:[^)]+)\)/g,'<a href="$2" target="_blank">$1</a>');
+ for(let L of lines){
+  let m;
+  if(m=L.match(/^###\s+(.*)/)){if(inUl){out+='</ul>';inUl=false;}out+='<h4>'+inline(m[1])+'</h4>';}
+  else if(m=L.match(/^##\s+(.*)/)){if(inUl){out+='</ul>';inUl=false;}out+='<h3>'+inline(m[1])+'</h3>';}
+  else if(m=L.match(/^#\s+(.*)/)){if(inUl){out+='</ul>';inUl=false;}out+='<h2>'+inline(m[1])+'</h2>';}
+  else if(m=L.match(/^[-*]\s+(.*)/)){if(!inUl){out+='<ul>';inUl=true;}out+='<li>'+inline(m[1])+'</li>';}
+  else if(L.trim()===''){if(inUl){out+='</ul>';inUl=false;}out+='<div style="height:6px"></div>';}
+  else{if(inUl){out+='</ul>';inUl=false;}out+='<div>'+inline(L)+'</div>';}
+ }
+ if(inUl)out+='</ul>';
+ return out;
+}
+// ---- layout radial determinístico (sem física) ----
+function layout(force){
+ const R=[0,275,485,655,810];
+ const leaf=id=>{const c=kids(id);return c.length?c.reduce((s,k)=>s+leaf(k.id),0):1;};
+ (function place(id,a0,a1,d){
+  const n=byId(id);if(!n)return;
+  const m=(a0+a1)/2;
+  if(force||n.x==null){n.x=Math.cos(m)*R[Math.min(d,4)];n.y=Math.sin(m)*R[Math.min(d,4)];}
+  const c=kids(id);if(!c.length)return;
+  const tot=c.reduce((s,k)=>s+leaf(k.id),0);let a=a0;
+  c.forEach(k=>{const w=(a1-a0)*leaf(k.id)/tot;place(k.id,a,a+w,d+1);a+=w;});
+ })('cip',-Math.PI/2,1.5*Math.PI,0);
+ DB.nodes.filter(n=>!n.parent&&n.id!=='cip').forEach((n,i)=>{
+  if(force||n.x==null){const a=-Math.PI/2+i*0.9;n.x=Math.cos(a)*150;n.y=Math.sin(a)*150;}
+ });
+}
+// ---- filter ----
+function matches(n){
+ if(n.tipo==='centro')return true;
+ if(fstatus.size&&!fstatus.has(n.status))return false;
+ if(n.prec<fprec)return false;
+ if(fclasse!=='all'&&n.classe!==fclasse)return false;
+ if(fsearch){const q=fsearch.toLowerCase();if(!((n.label+' '+n.desc+' '+(n.notes||'')).toLowerCase().includes(q)))return false;}
+ return true;
+}
+const isFiltering=()=>!!(fstatus.size||fprec>0||fclasse!=='all'||fsearch);
+function computeDist(){
+ // BFS a partir dos elementos filtrados, pelas arestas de hierarquia (pai↔filho)
+ const dist={};const q=[];
+ DB.nodes.forEach(n=>{if(n.tipo!=='centro'&&matches(n)){dist[n.id]=0;q.push(n.id);}});
+ let i=0;
+ while(i<q.length){
+  const id=q[i++];const d=dist[id];
+  if(d>=flayers-1)continue;
+  const n=byId(id);if(!n)continue;
+  const nb=[];
+  if(n.parent&&n.parent!=='cip')nb.push(n.parent);
+  kids(id).forEach(k=>nb.push(k.id));
+  // entidades se correlacionam pelas conexões
+  DB.links.forEach(L=>{
+   const A=byId(L.a),B=byId(L.b);if(!A||!B)return;
+   if(L.a===id&&(A.tipo==='entidade'||B.tipo==='entidade'))nb.push(L.b);
+   if(L.b===id&&(A.tipo==='entidade'||B.tipo==='entidade'))nb.push(L.a);
+  });
+  nb.forEach(m=>{if(dist[m]===undefined){dist[m]=d+1;q.push(m);}});
+ }
+ return dist;
+}
+function wrap(t,w){const words=t.split(' ');const lines=[''];words.forEach(x=>{if((lines[lines.length-1]+' '+x).trim().length>w)lines.push(x);else lines[lines.length-1]=(lines[lines.length-1]+' '+x).trim();});return lines.slice(0,3);}
+// ---- render graph ----
+const svgNS='http://www.w3.org/2000/svg';
+let edgeEls=[],xEls=[],nodeEls={};
+function renderGraph(){
+ const svg=document.getElementById('svg');
+ svg.innerHTML='';
+ const gEdges=document.createElementNS(svgNS,'g'),gX=document.createElementNS(svgNS,'g'),gNodes=document.createElementNS(svgNS,'g');
+ svg.appendChild(gEdges);svg.appendChild(gX);svg.appendChild(gNodes);
+ edgeEls=[];xEls=[];nodeEls={};
+ const filt=isFiltering();
+ const dist=filt?computeDist():null;
+ const visOK=n=>!filt||n.tipo==='centro'||dist[n.id]!==undefined;
+ const vcls=n=>{
+  if(!filt||n.tipo==='centro')return '';
+  const d=dist[n.id];
+  if(d===0)return '';
+  if(d===1)return ' lay1';
+  if(d===2)return ' lay2';
+  return n.tipo==='eixo'?' semi':' dim';
+ };
+ DB.nodes.forEach(n=>{
+  if(n.parent&&byId(n.parent)){
+   const l=document.createElementNS(svgNS,'line');
+   l.setAttribute('class','tedge'+((visOK(n)&&visOK(byId(n.parent)))?'':' dim'));
+   gEdges.appendChild(l);edgeEls.push({el:l,a:n.parent,b:n.id});
+  }
+ });
+ if(showConn)DB.links.forEach((L,i)=>{
+  const A=byId(L.a),B=byId(L.b);if(!A||!B)return;
+  const p=document.createElementNS(svgNS,'path');
+  const hl=sel&&(L.a===sel||L.b===sel)?' hl':'';
+  const df=(!visOK(A)||!visOK(B))?' dimf':'';
+  p.setAttribute('class','xedge '+L.tipo+hl+df);
+  const tt=document.createElementNS(svgNS,'title');
+  tt.textContent=`${A.label} ⟷ ${B.label} (${L.tipo})`+(L.nota?`\n📝 ${L.nota}`:'');
+  p.appendChild(tt);
+  p.addEventListener('click',e=>{e.stopPropagation();linkNoteModal(i);});
+  gX.appendChild(p);xEls.push({el:p,L});
+ });
+ DB.nodes.forEach(n=>{
+  const g=document.createElementNS(svgNS,'g');
+  const r=radius(n);
+  g.setAttribute('class','node'+vcls(n)+(sel===n.id?' sel':''));
+  g.dataset.id=n.id;
+  const fill=n.tipo==='centro'?'#1e293b':STATUS[n.status][1];
+  const st={0:'stroke:#94a3b8;stroke-width:1.4;stroke-dasharray:3 3',1:'stroke:#94a3b8;stroke-width:1.6',2:'stroke:#64748b;stroke-width:2',3:'stroke:#334155;stroke-width:2.6',4:'stroke:#b45309;stroke-width:3.4'}[n.prec||0];
+  let shape;
+  if(n.tipo==='entidade'){
+   shape=document.createElementNS(svgNS,'rect');
+   shape.setAttribute('x',-r);shape.setAttribute('y',-r);shape.setAttribute('width',2*r);shape.setAttribute('height',2*r);
+   shape.setAttribute('rx',5);
+   shape.setAttribute('style','fill:'+fill+';'+st+';stroke:var(--ent)'+(n.prec===4?';stroke:#b45309':''));
+  }else{
+   shape=document.createElementNS(svgNS,'circle');
+   shape.setAttribute('r',r);shape.setAttribute('style','fill:'+fill+';'+st);
+  }
+  shape.setAttribute('class','shape');
+  g.appendChild(shape);
+  if(n.tipo==='entidade'){
+   const q=document.createElementNS(svgNS,'text');q.setAttribute('text-anchor','middle');q.setAttribute('y',4);
+   q.setAttribute('style','font-size:'+Math.round(r*.9)+'px;fill:#fff;font-weight:700');q.textContent='◈';g.appendChild(q);
+  }
+  if(n.classe==='naoprevisto'){
+   const h=document.createElementNS(svgNS,'circle');h.setAttribute('r',r+5);h.setAttribute('class','halo');g.appendChild(h);
+  }
+  if(n.drives&&n.drives.length){
+   const t=document.createElementNS(svgNS,'text');t.setAttribute('text-anchor','middle');t.setAttribute('y',-r-5);
+   t.setAttribute('style','font-size:9px');t.textContent='📁'+(n.drives.length>1?n.drives.length:'');g.appendChild(t);
+  }
+  const lines=wrap(n.label,n.tipo==='eixo'?16:15);
+  if(n.tipo==='centro'){
+   const t=document.createElementNS(svgNS,'text');t.setAttribute('text-anchor','middle');t.setAttribute('y',4);
+   t.setAttribute('style','font-size:12px;font-weight:700;fill:#fff');t.textContent='CIP';g.appendChild(t);
+  }else if(n.tipo==='eixo'||n.tipo==='transversal'||n.parent==='cip'){
+   lines.forEach((L,i)=>{
+    const t=document.createElementNS(svgNS,'text');t.setAttribute('class','lbl');t.setAttribute('text-anchor','middle');
+    t.setAttribute('y',r+11+i*10.5);
+    if(n.tipo==='eixo')t.setAttribute('style','font-weight:700;font-size:10.5px');
+    t.textContent=L;g.appendChild(t);
+   });
+  }else{
+   const right=(n.x||0)>=0;
+   lines.forEach((L,i)=>{
+    const t=document.createElementNS(svgNS,'text');t.setAttribute('class','lbl');
+    t.setAttribute('text-anchor',right?'start':'end');t.setAttribute('x',right?r+5:-r-5);
+    t.setAttribute('y',(i-(lines.length-1)/2)*10.5+3);
+    t.textContent=L;g.appendChild(t);
+   });
+  }
+  gNodes.appendChild(g);nodeEls[n.id]=g;
+ });
+ svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+ updatePositions();
+}
+function updatePositions(){
+ for(const id in nodeEls){const n=byId(id);if(n)nodeEls[id].setAttribute('transform',`translate(${n.x},${n.y})`);}
+ edgeEls.forEach(e=>{const a=byId(e.a),b=byId(e.b);if(!a||!b)return;e.el.setAttribute('x1',a.x);e.el.setAttribute('y1',a.y);e.el.setAttribute('x2',b.x);e.el.setAttribute('y2',b.y);});
+ xEls.forEach(x=>{const a=byId(x.L.a),b=byId(x.L.b);if(!a||!b)return;const cx=(a.x+b.x)/2*.35,cy=(a.y+b.y)/2*.35;x.el.setAttribute('d',`M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}`);});
+}
+// ---- list ----
+const PBADGE={0:['#f8fafc','#94a3b8','1px dashed #cbd5e1'],1:['#fef9c3','#a16207','1px solid #fde68a'],2:['#fde68a','#92400e','1px solid #fcd34d'],3:['#f59e0b','#78350f','1px solid #d97706'],4:['#b45309','#ffffff','1px solid #92400e']};
+const RBADGE={1:['#f8fafc','#94a3b8','1px solid #e2e8f0'],2:['#e0e7ff','#6366f1','1px solid #c7d2fe'],3:['#c7d2fe','#4338ca','1px solid #a5b4fc'],4:['#818cf8','#1e1b4b','1px solid #6366f1'],5:['#4f46e5','#ffffff','1px solid #4338ca']};
+const pBadge=n=>{const c=PBADGE[n.prec||0];return `<span class="prec" style="background:${c[0]};color:${c[1]};border:${c[2]};font-weight:600" title="Precisão: ${n.prec}/4 critérios do checklist">P${n.prec}</span>`;};
+const rBadge=n=>{const c=RBADGE[n.relev||2];return `<span class="prec" style="background:${c[0]};color:${c[1]};border:${c[2]};font-weight:600" title="Relevância: ${n.relev}/5">R${n.relev}</span>`;};
+function renderList(){
+ const el=document.getElementById('list');let h='';
+ const groups=DB.nodes.filter(n=>n.tipo==='eixo'||n.tipo==='transversal');
+ const soltos=DB.nodes.filter(n=>(n.tipo==='ramo'&&(n.parent==='cip'||!n.parent))||n.tipo==='entidade');
+ const renderGrp=(x,ds)=>{
+  const all=[x,...ds].filter(matches);
+  if((fstatus.size||fprec>1||fsearch||fclasse!=='all')&&!all.length)return '';
+  const done=ds.filter(n=>n.status==='feito').length;
+  const pct=ds.length?Math.round(done/ds.length*100):(x.status==='feito'?100:0);
+  let g=`<div class="exgrp"><div class="exhead" data-id="${x.id}"><span class="dot" style="background:${STATUS[x.status][1]}${x.tipo==='entidade'?';border-radius:2px;outline:2px solid var(--ent)':''}"></span><h3>${x.tipo==='entidade'?'<span style="color:var(--ent)">◈</span> ':''}${esc(x.label)}${x.classe==='naoprevisto'?' <span class="np">✦</span>':''}</h3>${x.tipo==='entidade'?`<span class="hint">${DB.links.filter(L=>L.a===x.id||L.b===x.id).length} conexões</span>`:`<span class="hint">${done}/${ds.length} feitos</span>`}<div class="pbar"><i style="width:${pct}%"></i></div></div>`;
+  ds.forEach(n=>{if(!matches(n))return;
+   const d1=n.drives&&n.drives[0];
+   g+=`<div class="row" data-id="${n.id}"><span class="dot" style="background:${STATUS[n.status][1]}"></span>${esc(n.label)}${pBadge(n)}${rBadge(n)}${n.classe==='naoprevisto'?'<span class="np">✦ não previsto</span>':''}${n.parent!==x.id?'<span class="hint">↳</span>':''}${d1&&d1.url?`<a class="drv" href="${esc(d1.url)}" target="_blank" onclick="event.stopPropagation()">📁${n.drives.length>1?n.drives.length:''}</a>`:'<span class="drv" style="opacity:.25">📁</span>'}</div>`;});
+  return g+'</div>';
+ };
+ groups.forEach(x=>{h+=renderGrp(x,descRamos(x.id));});
+ soltos.forEach(x=>{h+=renderGrp(x,descRamos(x.id));});
+ el.innerHTML=h||'<p class="hint">Nenhum elemento corresponde aos filtros.</p>';
+ el.querySelectorAll('[data-id]').forEach(r=>r.addEventListener('click',()=>select(r.dataset.id)));
+}
+// ---- panel ----
+function select(id){sel=id;renderAll();openPanel();}
+function openPanel(){
+ const p=document.getElementById('panel');const n=byId(sel);
+ if(!n){p.classList.remove('open');return;}
+ p.classList.add('open');
+ const crumbs=[];let c=n;while(c){crumbs.unshift(c.label);c=byId(c.parent);}
+ const connOf=DB.links.map((L,i)=>({L,i})).filter(o=>o.L.a===n.id||o.L.b===n.id);
+ const others=DB.nodes.filter(x=>x.id!==n.id&&x.tipo!=='centro');
+ p.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+   <span class="badge" style="background:${STATUS[n.status][1]}">${STATUS[n.status][0]}</span>
+   ${n.tipo==='entidade'?'<span class="badge" style="background:var(--ent)">◈ Entidade</span>':''}
+   ${n.classe==='naoprevisto'?'<span class="np">✦ não previsto</span>':''}
+   <span style="flex:1"></span>
+   <button id="p-md" title="Baixar ficha .md">⇩ .md</button><button id="pclose">✕</button></div>
+  <div id="crumbs">${crumbs.map(esc).join(' › ')}</div>
+  <div><label>Título</label><input type="text" id="p-label" value="${esc(n.label)}"></div>
+  <div><label>Descrição / o que pesquisar</label><textarea id="p-desc" style="min-height:52px">${esc(n.desc)}</textarea></div>
+  <div class="mrow"><div><label>Status</label><select id="p-status">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}"${n.status===k?' selected':''}>${v[0]}</option>`).join('')}</select></div>
+  <div><label>Relevância (tamanho)</label><select id="p-relev">${[1,2,3,4,5].map(r=>`<option value="${r}"${n.relev==r?' selected':''}>R${r}${r===1?' mínima':r===5?' máxima':''}</option>`).join('')}</select></div></div>
+  <div><label>Classe</label><select id="p-classe">${Object.entries(CLASSE).map(([k,v])=>`<option value="${k}"${n.classe===k?' selected':''}>${v}</option>`).join('')}</select></div>
+  <div><label>Checklist de precisão — P${n.prec}/4${n.prec===4?' ★':''}</label>
+   <div style="display:flex;flex-direction:column;gap:4px;margin-top:3px">
+   ${Object.entries(CHECKS).map(([k,v])=>`<label style="display:flex;gap:7px;align-items:flex-start;font-size:12px;text-transform:none;letter-spacing:0;font-weight:${n.checks[k]?'600':'400'};color:${n.checks[k]?'var(--ink)':'var(--mut)'};cursor:pointer"><input type="checkbox" data-chk="${k}"${n.checks[k]?' checked':''} style="margin-top:2px">${v[0]}<span class="hint" style="font-weight:400"> — ${v[1]}</span></label>`).join('')}
+   </div></div>
+  <div><label>Lotes no Google Drive</label>
+   <div id="p-drives">${(n.drives||[]).map((d,i)=>`<div class="drivelot"><input type="text" data-di="${i}" data-k="label" value="${esc(d.label)}" placeholder="nome do lote" style="max-width:95px"><input type="url" data-di="${i}" data-k="url" value="${esc(d.url)}" placeholder="https://drive.google.com/…">${d.url?`<a href="${esc(d.url)}" target="_blank" title="Abrir">📁</a>`:''}<b style="cursor:pointer;color:#dc2626" data-deldrive="${i}">✕</b></div>`).join('')}</div>
+   <button id="p-adddrive" style="margin-top:4px">+ lote</button>
+   <div class="hint">Pasta sugerida: <code>${drivePath(n)}</code></div></div>
+  <div><div style="display:flex;justify-content:space-between;align-items:center"><label>Notas (markdown)</label><button id="p-mdedit" style="padding:2px 8px">⤢ Editor</button></div>
+   <textarea id="p-notes" placeholder="# Título&#10;**negrito** *itálico*&#10;- item de lista&#10;[link](https://…)">${esc(n.notes)}</textarea></div>
+  <div><label>Conexões (arestas)</label>
+   <div>${connOf.map(o=>{const other=o.L.a===n.id?o.L.b:o.L.a;const on=byId(other);if(!on)return '';
+    return `<div class="connbox ${o.L.tipo}"><div class="connhead"><span class="nm" data-go="${other}">${esc(on.label)}</span><u data-tp="${o.i}" title="alternar direta/indireta">${o.L.tipo==='direto'?'━ direta':'╌ indireta'}</u><span data-note="${o.i}" title="anotação da conexão" style="cursor:pointer">📝</span><b data-del="${o.i}">✕</b></div>${o.L.nota?`<div class="connnote">${esc(o.L.nota)}</div>`:''}</div>`;
+   }).join('')||'<span class="hint">nenhuma</span>'}</div>
+   <div class="mrow" style="margin-top:5px"><select id="p-addconn"><option value="">+ conectar a…</option>${others.map(o=>`<option value="${o.id}">${esc(o.label)}</option>`).join('')}</select>
+   <select id="p-conntipo" style="max-width:105px"><option value="direto">direta ━</option><option value="indireto">indireta ╌</option></select></div>
+   <div class="hint">📝 abre a anotação da conexão (por que esses elementos se ligam)</div></div>
+  <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+   <button id="p-child" class="primary">+ Ramificação filha</button>
+   ${(n.tipo==='ramo'||n.tipo==='entidade')?'<button id="p-del" class="danger">Excluir</button>':''}
+  </div>`;
+ p.querySelector('#pclose').onclick=()=>{sel=null;p.classList.remove('open');renderAll();};
+ p.querySelector('#p-md').onclick=()=>downloadText(slug(n.label)+'.md',nodeMd(n));
+ const upd=(k,v,re)=>{n[k]=v;save();renderAll();if(re)openPanel();};
+ p.querySelector('#p-label').onchange=e=>upd('label',e.target.value,true);
+ p.querySelector('#p-desc').onchange=e=>upd('desc',e.target.value);
+ p.querySelector('#p-status').onchange=e=>upd('status',e.target.value,true);
+ p.querySelectorAll('[data-chk]').forEach(cb=>cb.addEventListener('change',e=>{n.checks[e.target.dataset.chk]=e.target.checked;n.prec=precOf(n);save();renderAll();openPanel();}));
+ p.querySelector('#p-relev').onchange=e=>upd('relev',+e.target.value,true);
+ p.querySelector('#p-classe').onchange=e=>upd('classe',e.target.value,true);
+ p.querySelector('#p-notes').onchange=e=>upd('notes',e.target.value);
+ p.querySelectorAll('#p-drives input').forEach(inp=>inp.addEventListener('change',e=>{n.drives[+e.target.dataset.di][e.target.dataset.k]=e.target.value.trim();save();renderAll();openPanel();}));
+ p.querySelectorAll('[data-deldrive]').forEach(b=>b.addEventListener('click',()=>{n.drives.splice(+b.dataset.deldrive,1);save();renderAll();openPanel();}));
+ p.querySelector('#p-adddrive').onclick=()=>{n.drives.push({label:'Lote '+(n.drives.length+1),url:''});save();openPanel();};
+ p.querySelector('#p-mdedit').onclick=()=>notesEditor(n);
+ p.querySelectorAll('.connhead').forEach(ch=>ch.addEventListener('click',e=>{
+  const t=e.target;
+  if(t.tagName==='B'){DB.links.splice(+t.dataset.del,1);save();renderAll();openPanel();}
+  else if(t.tagName==='U'){const L=DB.links[+t.dataset.tp];L.tipo=L.tipo==='direto'?'indireto':'direto';save();renderAll();openPanel();}
+  else if(t.dataset.note!==undefined){linkNoteModal(+t.dataset.note);}
+  else if(t.dataset.go)select(t.dataset.go);
+ }));
+ p.querySelector('#p-addconn').onchange=e=>{if(e.target.value){DB.links.push({a:n.id,b:e.target.value,tipo:p.querySelector('#p-conntipo').value,nota:''});save();renderAll();openPanel();toast('Conexão criada — clique em 📝 para anotá-la');}};
+ p.querySelector('#p-child').onclick=()=>newElementModal(n.id);
+ const del=p.querySelector('#p-del');
+ if(del)del.onclick=()=>ask(`Excluir "${n.label}"${kids(n.id).length?' e suas ramificações':''}?`,()=>{
+  const rm=[n.id,...descRamos(n.id).map(x=>x.id)];
+  DB.nodes=DB.nodes.filter(x=>!rm.includes(x.id));
+  DB.links=DB.links.filter(L=>!rm.includes(L.a)&&!rm.includes(L.b));
+  sel=null;save();renderAll();p.classList.remove('open');
+ });
+}
+// ---- modal infra ----
+function modal(html,wide){
+ const ov=document.getElementById('overlay'),m=document.getElementById('modal');
+ m.className=wide?'wide':'';m.innerHTML=html;ov.classList.add('open');
+ return {close:()=>ov.classList.remove('open'),el:m};
+}
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')e.target.classList.remove('open');});
+function ask(msg,cb){
+ const m=modal(`<h2>${esc(msg)}</h2><div style="display:flex;gap:8px;justify-content:flex-end"><button id="m-no">Cancelar</button><button id="m-yes" class="primary">Confirmar</button></div>`);
+ m.el.querySelector('#m-no').onclick=m.close;
+ m.el.querySelector('#m-yes').onclick=()=>{m.close();cb();};
+}
+function linkNoteModal(i){
+ const L=DB.links[i];if(!L)return;
+ const A=byId(L.a),B=byId(L.b);
+ const m=modal(`<h2>Anotação da conexão</h2>
+  <div class="hint">${esc(A?A.label:'?')} ⟷ ${esc(B?B.label:'?')} · <b>${L.tipo==='direto'?'━ direta':'╌ indireta'}</b></div>
+  <div><label>Por que esses elementos se conectam? (contexto, fonte, uso na expografia…)</label>
+  <textarea id="m-nota" style="min-height:120px">${esc(L.nota||'')}</textarea></div>
+  <div style="display:flex;gap:8px;justify-content:space-between">
+   <button id="m-tipo">${L.tipo==='direto'?'tornar indireta ╌':'tornar direta ━'}</button>
+   <div style="display:flex;gap:8px"><button id="m-no">Cancelar</button><button id="m-ok" class="primary">Salvar</button></div></div>`);
+ m.el.querySelector('#m-tipo').onclick=function(){L.tipo=L.tipo==='direto'?'indireto':'direto';this.textContent=L.tipo==='direto'?'tornar indireta ╌':'tornar direta ━';save();renderAll();};
+ m.el.querySelector('#m-no').onclick=m.close;
+ m.el.querySelector('#m-ok').onclick=()=>{L.nota=m.el.querySelector('#m-nota').value.trim();save();m.close();renderAll();if(sel)openPanel();toast('Anotação salva');};
+}
+function newElementModal(parentId){
+ const parents=DB.nodes.slice().sort((a,b)=>a.label.localeCompare(b.label));
+ const m=modal(`<h2>+ Novo elemento</h2>
+  <div><label>Nome</label><input type="text" id="m-label" placeholder="ex.: Entrevista com tapioqueiras"></div>
+  <div><label>Anexar a (eixo ou elemento-pai — hierarquias profundas são permitidas)</label><select id="m-parent">${parents.map(o=>`<option value="${o.id}"${o.id===(parentId||'cip')?' selected':''}>${esc(o.label)}</option>`).join('')}</select></div>
+  <div class="mrow"><div><label>Classe</label><select id="m-classe"><option value="naoprevisto">Não previsto ✦ (potencialidade)</option><option value="previsto">Previsto (escopo original)</option></select></div>
+  <div><label>Relevância</label><select id="m-relev">${[1,2,3,4,5].map(r=>`<option value="${r}"${r===2?' selected':''}>R${r}</option>`).join('')}</select></div></div>
+  <div><label>Descrição (opcional)</label><textarea id="m-desc" style="min-height:50px"></textarea></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button id="m-no">Cancelar</button><button id="m-ok" class="primary">Criar</button></div>`);
+ m.el.querySelector('#m-label').focus();
+ m.el.querySelector('#m-no').onclick=m.close;
+ m.el.querySelector('#m-ok').onclick=()=>{
+  const label=m.el.querySelector('#m-label').value.trim();
+  if(!label){m.el.querySelector('#m-label').style.borderColor='#dc2626';return;}
+  const id='n'+Date.now();
+  const node=N(id,m.el.querySelector('#m-parent').value,'ramo',label,m.el.querySelector('#m-desc').value.trim(),
+   {classe:m.el.querySelector('#m-classe').value,relev:+m.el.querySelector('#m-relev').value});
+  DB.nodes.push(node);
+  save();layout(false);m.close();select(id);toast('Elemento criado');
+ };
+}
+function newEntityModal(){
+ const alvos=DB.nodes.filter(x=>x.tipo==='eixo'||x.tipo==='ramo').sort((a,b)=>a.label.localeCompare(b.label));
+ const m=modal(`<h2 style="color:var(--ent)">◈ Nova entidade</h2>
+  <div class="hint">Pessoa, instituição, colecionador ou grupo. Uma entidade não pertence a um eixo — ela alimenta várias frentes ao mesmo tempo, pelas conexões.</div>
+  <div><label>Nome</label><input type="text" id="m-label" placeholder="ex.: Fundaj, Plínio Victor, colecionador de postais…"></div>
+  <div><label>Descrição (papel, contato, próxima reunião…)</label><textarea id="m-desc" style="min-height:50px"></textarea></div>
+  <div class="mrow"><div><label>Classe</label><select id="m-classe"><option value="previsto">Previsto (escopo original)</option><option value="naoprevisto">Não previsto ✦ (potencialidade)</option></select></div>
+  <div><label>Relevância</label><select id="m-relev">${[1,2,3,4,5].map(r=>`<option value="${r}"${r===3?' selected':''}>R${r}</option>`).join('')}</select></div></div>
+  <div><label>Conecta-se a (marque todas as frentes que essa entidade alimenta)</label>
+   <div style="max-height:180px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:3px">
+   ${alvos.map(o=>`<label style="display:flex;gap:6px;font-size:12px;text-transform:none;letter-spacing:0;font-weight:${o.tipo==='eixo'?'700':'400'};cursor:pointer"><input type="checkbox" data-tgt="${o.id}">${esc(o.label)}</label>`).join('')}
+   </div></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button id="m-no">Cancelar</button><button id="m-ok" class="primary" style="background:var(--ent);border-color:var(--ent)">Criar entidade</button></div>`);
+ m.el.querySelector('#m-label').focus();
+ m.el.querySelector('#m-no').onclick=m.close;
+ m.el.querySelector('#m-ok').onclick=()=>{
+  const label=m.el.querySelector('#m-label').value.trim();
+  if(!label){m.el.querySelector('#m-label').style.borderColor='#dc2626';return;}
+  const id='ent'+Date.now();
+  DB.nodes.push(N(id,null,'entidade',label,m.el.querySelector('#m-desc').value.trim(),
+   {classe:m.el.querySelector('#m-classe').value,relev:+m.el.querySelector('#m-relev').value}));
+  m.el.querySelectorAll('[data-tgt]:checked').forEach(cb=>DB.links.push({a:id,b:cb.dataset.tgt,tipo:'direto',nota:''}));
+  save();layout(false);m.close();select(id);toast('Entidade criada e conectada');
+ };
+}
+function notesEditor(n){
+ const m=modal(`<h2>Notas — ${esc(n.label)}</h2>
+  <div class="mdtb">
+   <button data-md="**" data-w="1"><b>B</b></button><button data-md="*" data-w="1"><i>I</i></button>
+   <button data-md="# " data-line="1">H1</button><button data-md="## " data-line="1">H2</button>
+   <button data-md="- " data-line="1">• lista</button>
+   <button id="md-link">🔗 link</button>
+   <span style="flex:1"></span><button id="md-dl">⇩ baixar .md</button>
+  </div>
+  <div id="mdsplit"><textarea id="md-ta">${esc(n.notes)}</textarea><div id="mdprev"></div></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button id="m-no">Fechar sem salvar</button><button id="m-ok" class="primary">Salvar notas</button></div>`,true);
+ const ta=m.el.querySelector('#md-ta'),pv=m.el.querySelector('#mdprev');
+ const prev=()=>pv.innerHTML=md(ta.value);prev();
+ ta.addEventListener('input',prev);
+ function insert(before,after,line){
+  const s=ta.selectionStart,e=ta.selectionEnd,v=ta.value;
+  if(line){const ls=v.lastIndexOf('\n',s-1)+1;ta.value=v.slice(0,ls)+before+v.slice(ls);ta.selectionStart=ta.selectionEnd=e+before.length;}
+  else{ta.value=v.slice(0,s)+before+v.slice(s,e)+(after||before)+v.slice(e);ta.selectionStart=s+before.length;ta.selectionEnd=e+before.length;}
+  ta.focus();prev();
+ }
+ m.el.querySelectorAll('[data-md]').forEach(b=>b.addEventListener('click',()=>insert(b.dataset.md,b.dataset.w?b.dataset.md:'',b.dataset.line)));
+ m.el.querySelector('#md-link').onclick=()=>insert('[texto](https://)','',false);
+ m.el.querySelector('#md-dl').onclick=()=>downloadText(slug(n.label)+'-notas.md',ta.value);
+ m.el.querySelector('#m-no').onclick=m.close;
+ m.el.querySelector('#m-ok').onclick=()=>{n.notes=ta.value;save();m.close();renderAll();openPanel();toast('Notas salvas');};
+}
+// ---- markdown export ----
+function nodeMd(n){
+ const crumbs=[];let c=n;while(c){crumbs.unshift(c.label);c=byId(c.parent);}
+ const conns=DB.links.filter(L=>L.a===n.id||L.b===n.id).map(L=>{const o=byId(L.a===n.id?L.b:L.a);return o?`- [[${o.label}]] (${L.tipo})${L.nota?' — '+L.nota:''}`:''}).filter(Boolean);
+ return `# ${n.label}
+
+> ${crumbs.join(' › ')}
+
+- **Status:** ${STATUS[n.status][0]}
+- **Precisão:** P${n.prec}/4
+- **Relevância:** R${n.relev}
+- **Classe:** ${CLASSE[n.classe]||n.classe}
+- **Pasta sugerida:** \`${drivePath(n)}\`
+
+## Checklist de precisão
+
+${Object.entries(CHECKS).map(([k,v])=>`- [${n.checks&&n.checks[k]?'x':' '}] ${v[0]} — ${v[1]}`).join('\n')}
+
+## Descrição
+
+${n.desc||'—'}
+
+## Notas
+
+${n.notes||'—'}
+
+## Conexões
+
+${conns.join('\n')||'—'}
+
+## Lotes no Google Drive
+
+${(n.drives||[]).map(d=>`- [${d.label}](${d.url})`).join('\n')||'—'}
+`;
+}
+function allMd(){
+ let out=`# Mapa Rizomático — CIP Olinda\n\nExportado em ${new Date().toLocaleDateString('pt-BR')}\n\n`;
+ const groups=DB.nodes.filter(n=>n.tipo==='eixo'||n.tipo==='transversal'||n.tipo==='entidade'||(n.tipo==='ramo'&&(n.parent==='cip'||!n.parent)));
+ groups.forEach(x=>{out+='\n---\n\n'+nodeMd(x);descRamos(x.id).forEach(n=>{out+='\n---\n\n'+nodeMd(n);});});
+ return out;
+}
+function downloadText(name,text){
+ const b=new Blob([text],{type:'text/plain;charset=utf-8'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();
+}
+// ---- stats/toast ----
+function renderStats(){
+ const r=DB.nodes.filter(n=>n.tipo==='ramo');
+ const c=s=>r.filter(n=>n.status===s).length;
+ const p4=r.filter(n=>n.prec===4).length;
+ const np=DB.nodes.filter(n=>n.classe==='naoprevisto').length;
+ document.getElementById('stats').innerHTML=
+ `<span>${r.length} elementos</span><span style="color:var(--af)">◦ ${c('afazer')} a fazer</span><span style="color:var(--fz)">◦ ${c('fazendo')} fazendo</span><span style="color:var(--ft)">◦ ${c('feito')} feitos</span><span style="color:#b45309">★ ${p4} P4</span><span style="color:var(--np)">✦ ${np} não previstos</span>`;
+}
+let toastT;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>t.style.display='none',2200);}
+function renderAll(){renderStats();if(view==='map'){document.getElementById('mapwrap').style.display='block';document.getElementById('list').classList.remove('open');renderGraph();}else{document.getElementById('mapwrap').style.display='none';document.getElementById('list').classList.add('open');renderList();}}
+// ---- toolbar ----
+document.querySelectorAll('.chip').forEach(ch=>ch.addEventListener('click',()=>{
+ const s=ch.dataset.s;
+ if(s==='all')fstatus.clear();else{fstatus.has(s)?fstatus.delete(s):fstatus.add(s);}
+ document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.s==='all'?fstatus.size===0:fstatus.has(c.dataset.s)));
+ renderAll();
+}));
+document.getElementById('fprec').onchange=e=>{fprec=+e.target.value;renderAll();};
+document.getElementById('fclasse').onchange=e=>{fclasse=e.target.value;renderAll();};
+document.getElementById('fsearch').oninput=e=>{fsearch=e.target.value.trim();renderAll();};
+document.getElementById('fconn').onchange=e=>{showConn=e.target.checked;renderAll();};
+document.getElementById('flayers').oninput=e=>{flayers=+e.target.value;document.getElementById('flayerslbl').textContent={1:'só filtrados',2:'+ camada direta',3:'+ camada distante'}[flayers];renderAll();};
+document.getElementById('vtoggle').onclick=function(){view=view==='map'?'list':'map';this.textContent=view==='map'?'☰ Lista':'🌿 Mapa';renderAll();};
+document.getElementById('addbtn').onclick=()=>newElementModal(null);
+document.getElementById('entbtn').onclick=()=>newEntityModal();
+document.getElementById('expbtn').onclick=()=>downloadText('cip-olinda-rizoma.json',JSON.stringify(DB,null,2));
+document.getElementById('expmd').onclick=()=>downloadText('cip-olinda-mapa.md',allMd());
+document.getElementById('impbtn').onclick=()=>document.getElementById('impfile').click();
+document.getElementById('impfile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=migrate(JSON.parse(r.result));if(d&&d.nodes){DB=d;save();layout(false);renderAll();toast('Importado');}else toast('JSON inválido');}catch(x){toast('Erro ao ler JSON');}};r.readAsText(f);};
+document.getElementById('rstbtn').onclick=()=>ask('Restaurar o mapa original? Suas edições serão perdidas.',()=>{DB=migrate(structuredClone(SEED));save();sel=null;layout(true);renderAll();});
+// ---- pan/zoom/drag ----
+const svg=document.getElementById('svg');
+let pan=null,dragging=null,dragInfo=null;
+function svgPt(e){const r=svg.getBoundingClientRect();return{x:vb.x+(e.clientX-r.left)/r.width*vb.w,y:vb.y+(e.clientY-r.top)/r.height*vb.h};}
+svg.addEventListener('mousedown',e=>{
+ const g=e.target.closest('.node');
+ if(g){const n=byId(g.dataset.id);
+  if(n&&n.tipo!=='centro'){dragging=n;dragInfo={moved:0};}
+  else if(n){dragInfo={moved:0,clickOnly:n.id};}
+  e.stopPropagation();return;}
+ pan={x:e.clientX,y:e.clientY,vx:vb.x,vy:vb.y};svg.classList.add('panning');
+});
+window.addEventListener('mousemove',e=>{
+ if(dragging){const p=svgPt(e);dragging.x=p.x;dragging.y=p.y;dragInfo.moved+=Math.abs(e.movementX)+Math.abs(e.movementY);updatePositions();return;}
+ if(!pan)return;const sc=vb.w/svg.clientWidth;vb.x=pan.vx-(e.clientX-pan.x)*sc;vb.y=pan.vy-(e.clientY-pan.y)*sc;svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+});
+window.addEventListener('mouseup',e=>{
+ if(dragging){if(dragInfo.moved<5)select(dragging.id);else save();dragging=null;dragInfo=null;return;}
+ if(dragInfo&&dragInfo.clickOnly){select(dragInfo.clickOnly);dragInfo=null;return;}
+ pan=null;svg.classList.remove('panning');
+});
+svg.addEventListener('click',e=>{if(e.target===svg){sel=null;document.getElementById('panel').classList.remove('open');renderAll();}});
+svg.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY>0?1.12:0.89,e);},{passive:false});
+function zoom(f,e){const r=svg.getBoundingClientRect();const mx=e?vb.x+(e.clientX-r.left)/r.width*vb.w:vb.x+vb.w/2;const my=e?vb.y+(e.clientY-r.top)/r.height*vb.h:vb.y+vb.h/2;vb={x:mx-(mx-vb.x)*f,y:my-(my-vb.y)*f,w:vb.w*f,h:vb.h*f};svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);}
+document.getElementById('zin').onclick=()=>zoom(0.8);
+document.getElementById('zout').onclick=()=>zoom(1.25);
+document.getElementById('zfit').onclick=()=>{vb={x:-820,y:-650,w:1640,h:1300};svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);};
+document.getElementById('zheat').onclick=()=>{layout(true);save();renderAll();toast('Posições redistribuídas');};
+// ---- init ----
+load();layout(false);save();renderAll();
+</script>
+</body>
+</html>
