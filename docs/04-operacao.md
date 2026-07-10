@@ -4,12 +4,13 @@ Guia de 1 página para operar a versão multiusuário. Público: admin OCCA.
 
 ## Infra provisionada
 
+- **GitHub:** [github.com/occa-space-ict/cip-olinda-app](https://github.com/occa-space-ict/cip-olinda-app) (privado, conta `occa-space-ict`).
 - **Supabase** (projeto `cip-olinda`, ref `tvnmvmkssotosiobtxfw`, região `sa-east-1`).
   - Tabelas: `nodes`, `links`, `project_members`. RLS ligada em todas.
   - Auth: magic link (e-mail, sem senha). Login restrito à allowlist `project_members`.
   - URL da API: `https://tvnmvmkssotosiobtxfw.supabase.co`
   - Publishable key (pública, protegida por RLS): `sb_publishable_QBb9E1XMQ4q3FPVin2UBcQ__C2LlP4t`
-- **Vercel:** pendente de publicação (ver abaixo — precisa de permissão de criação de projeto na conta).
+- **Vercel:** pendente de publicação (ver abaixo — o conector automático não tem permissão de criação de projeto; publicar manualmente via dashboard importando do GitHub).
 
 ## Variáveis de ambiente (frontend)
 
@@ -24,14 +25,19 @@ Local: copie `.env.example` para `.env.local`. Na Vercel: defina as duas em Proj
 
 ## Publicar na Vercel
 
-O deploy automático falhou por falta de permissão de criação de projeto no token conectado
-(`403 forbidden: You don't have permission to create a project`). Publique manualmente:
+O deploy automático via conector falhou por falta de permissão de criação de projeto
+(`403 forbidden: You don't have permission to create a project`). Publique manualmente
+pelo dashboard, importando direto do GitHub (recomendado — habilita auto-deploy a cada push):
 
-1. `npm i -g vercel && vercel login`
-2. Na raiz do projeto: `vercel --prod`
-   - Framework detectado: Vite · Build: `npm run build` · Output: `dist`
-3. Em Project Settings → Environment Variables, adicione `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (Production).
-4. Redeploy.
+1. [vercel.com/new](https://vercel.com/new) → **Import Git Repository**
+2. Selecione `occa-space-ict/cip-olinda-app` (autorize o GitHub App da Vercel se pedido)
+3. Framework Preset: **Vite** (detectado automaticamente) · Build: `npm run build` · Output: `dist`
+4. Em **Environment Variables**, adicione antes de clicar em Deploy:
+   - `VITE_SUPABASE_URL` = `https://tvnmvmkssotosiobtxfw.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY` = `sb_publishable_QBb9E1XMQ4q3FPVin2UBcQ__C2LlP4t`
+5. **Deploy**
+
+Alternativa via CLI (`npm i -g vercel && vercel login && vercel --prod` na raiz do projeto) também funciona, mas exige repetir `vercel --prod` após configurar as env vars.
 
 Após ter a URL pública (ex.: `https://cip-olinda.vercel.app`):
 
