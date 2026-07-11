@@ -19,9 +19,11 @@ export function currentEmail(session) {
 }
 
 export async function sendMagicLink(email) {
+  // BASE_URL inclui o subpath do GitHub Pages (ex.: /cip-olinda-app/) — usar
+  // window.location.origin sozinho perde o subpath e quebra o redirect.
   return supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.origin },
+    options: { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL },
   });
 }
 
